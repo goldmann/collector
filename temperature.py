@@ -10,6 +10,8 @@ from graph import Graph
 from database import db_session
 from reading import Reading
 
+from collector.exceptions import *
+
 class Temperature:
 
     def __init__(self, request):
@@ -31,7 +33,7 @@ class Temperature:
 
     def set_accuracy(self, accuracy):
         if accuracy <= 0 or accuracy > 5:
-            raise ValueError("Provided value is out of range for accuracy; use value between 1 and 5")
+            raise DataException("Invalid data", "Provided accuracy value is out of range for accuracy; use value between 1 and 5", 400)
 
         self.accuracy = accuracy
 
@@ -57,7 +59,7 @@ class Temperature:
             end = start - 86400 # 24h earlier
 
         if start > end:
-            raise ValueError("Start date is older than end date")
+            raise DataException("Invalid data range", "Start date is older than end date", 400)
 
         return start, end
 
@@ -115,7 +117,7 @@ class Temperature:
             readings.append([r['timestamp'], r['value'], r['location']])
 
         if not readings:
-            raise ValueError("Requested data range is empty")
+            raise DataException("No data", "Requested data range does not have any data; try different range", 400)
 
         app.logger.info("Reading %d records from database took %d ms", len(readings), duration.miliseconds())
 

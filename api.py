@@ -5,7 +5,6 @@ import re
 from flask import Flask
 from flask import request
 from flask import jsonify
-from flask import make_response
 from flask import abort, redirect, url_for
 
 from werkzeug.exceptions import default_exceptions
@@ -21,38 +20,22 @@ from graph import Graph
 from utils import Timer, init_logging
 from temperature import Temperature
 
-DEBUG = False
+from collector.exceptions import CollectorException
+
+DEBUG = True
 
 def create_app(host = "0.0.0.0", port = 8080):
     app = Flask(__name__)
 
-    """
-    Creates a JSON-oriented Flask app.
-
-    All error responses that you don't specifically
-    manage yourself will have application/json content
-    type, and will contain JSON
-    """
-    @app.errorhandler(Exception)
-    def make_json_error(ex):
-        if not isinstance(ex, HTTPException):
-            app.logger.exception(ex)
-
-        if isinstance(ex, ValueError):
-            return jsonify(
-                code = 400,
-                message = "Invalid data",
-                description = ex.message
-            )
-
+    def prepare_error(message, description, code):
         try:
             response = jsonify(
-                code = ex.code,
-                message = ex.message,
-                description = re.sub('<[^<]+?>', '', ex.description)
+                code = code,
+                message = message,
+                description = description
             )
 
-            response.status_code = ex.code
+            response.status_code = code
         except AttributeError:
             response = jsonify(
                 code = 500,
@@ -63,6 +46,17 @@ def create_app(host = "0.0.0.0", port = 8080):
             response.status_code = 500
 
         return response
+
+
+    @app.errorhandler(Exception)
+    def make_json_error(ex):
+        if isinstance(ex, HTTPException):
+            return prepare_error(ex.message, ex.description, ex.code)
+
+        if isinstance(ex, CollectorException):
+            app.logger.warn("%s: %s [%s]", ex.__class__.__name__, ex.message, ex.description)
+
+        return prepare_error(ex.message, ex.description, ex.code)
 
     init_logging(app, DEBUG)
     init_db()
