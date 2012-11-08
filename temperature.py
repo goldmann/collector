@@ -55,8 +55,8 @@ class Temperature:
             start = end - 86400 # 24h earlier
         else:
             app.logger.debug("No dates specified, both 'start' and 'end' will be calculated")
-            start = int(time.mktime(time.localtime()))
-            end = start - 86400 # 24h earlier
+            end = int(time.mktime(time.localtime()))
+            start = end - 86400 # 24h earlier
 
         if start > end:
             raise DataException("Invalid data range", "Start date is older than end date", 400)
