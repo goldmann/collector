@@ -27,42 +27,40 @@ DEBUG = True
 def create_app(host = "0.0.0.0", port = 8080):
     app = Flask(__name__)
 
-    def prepare_error(message, description, code):
-        try:
-            response = jsonify(
-                code = code,
-                message = message,
-                description = description
-            )
+    def prepare_error(message, description, code = None):
 
-            response.status_code = code
-        except AttributeError:
-            response = jsonify(
-                code = 500,
-                message = "500 Internal server error",
-                description = "Internal error occurred, please try again later and/or report it to the administrator"
-            )
+        if not code:
+            code = 500
 
-            response.status_code = 500
+        response = jsonify(
+            code = code,
+            message = message,
+            description = description
+        )
+
+        response.status_code = code
 
         return response
 
 
-    @app.errorhandler(Exception)
-    def make_json_error(ex):
-        if isinstance(ex, HTTPException):
-            return prepare_error(ex.message, ex.description, ex.code)
+    @app.errorhandler(HTTPException)
+    def http_error(ex):
+        return prepare_error(ex.message, re.sub('<[^<]+?>', '', ex.description), ex.code)
 
-        if isinstance(ex, CollectorException):
-            app.logger.warn("%s: %s [%s]", ex.__class__.__name__, ex.message, ex.description)
-
+    @app.errorhandler(CollectorException)
+    def application_error(ex):
+        app.logger.warn("%s: %s [%s]", ex.__class__.__name__, ex.message, ex.description)
         return prepare_error(ex.message, ex.description, ex.code)
+
+    @app.errorhandler(Exception)
+    def error(ex):
+        return prepare_error(ex.message, ex.description)
 
     init_logging(app, DEBUG)
     init_db()
 
     for code in default_exceptions.iterkeys():
-        app.error_handler_spec[None][code] = make_json_error
+        app.error_handler_spec[None][code] = http_error
 
     # Define the routes available in the application
     define_routes(app)
