@@ -22,10 +22,18 @@ from temperature import Temperature
 
 from collector.exceptions import CollectorException
 
-DEBUG = True
-
-def create_app(host = "0.0.0.0", port = 8080):
+def create_app():
     app = Flask(__name__)
+
+    # Read configuration from file
+    # If settings.py is founds, use it
+    # If settings.py doesn't exists, use default_settings.py
+    #
+    # http://flask.pocoo.org/docs/config/#configuring-from-files
+    try:
+        app.config.from_object('settings')
+    except:
+        app.config.from_object('default_settings')
 
     def prepare_error(message, description, code = None):
 
@@ -42,7 +50,6 @@ def create_app(host = "0.0.0.0", port = 8080):
 
         return response
 
-
     @app.errorhandler(HTTPException)
     def http_error(ex):
         return prepare_error(ex.message, re.sub('<[^<]+?>', '', ex.description), ex.code)
@@ -56,7 +63,7 @@ def create_app(host = "0.0.0.0", port = 8080):
     def error(ex):
         return prepare_error(ex.message, ex.description)
 
-    init_logging(app, DEBUG)
+    init_logging(app)
     init_db()
 
     for code in default_exceptions.iterkeys():
@@ -67,7 +74,8 @@ def create_app(host = "0.0.0.0", port = 8080):
 
     app.logger.info("Application is ready")
 
-    app.run(host, port, DEBUG)
+    if __name__ == '__main__':
+        app.run(app.config['HOST'], app.config['PORT'], app.config['DEBUG'])
 
 def define_routes(app):
     @app.route("/")

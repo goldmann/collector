@@ -20,21 +20,37 @@ class Timer():
         return int((self.end_time - self.start_time) * 1000)
 
 
-def init_logging(app, debug = False):
+def init_logging(app):
 
     loggers = [app.logger, getLogger('sqlalchemy')] #, getLogger('sqlalchemy.engine')]
 
     handler = StreamHandler()
     handler.setFormatter(Formatter('%(asctime)s %(levelname)s\t%(filename)s:%(lineno)d: %(message)s'))
 
-    if debug:
-        handler.setLevel(logging.DEBUG)
-    else:
-        handler.setLevel(logging.INFO)
+    # By default set the logger to INFO
+    app.logger.setLevel(logging.INFO)
+
+    # By default set the sqlalchemy logger to WARN
+    app.logger.setLevel(logging.WARN)
+
+    # default: NOTSET
+    # sqlalchemy: WARN
+
+    # CRITICAL 	50
+    # ERROR     40
+    # WARNING   30
+    # INFO      20
+    # DEBUG     10
+    # NOTSET    0
 
     for l in loggers:
+        if app.config['DEBUG']:
+            l.setLevel(logging.DEBUG)
+
+        # Remove all handlers
         del l.handlers[:]
-        l.setLevel(logging.DEBUG)
+
+        # Add the default one
         l.addHandler(handler)
 
     app.logger.debug("Logging initialized") # with %s level", handler.getLevel())
