@@ -129,7 +129,7 @@ class Temperature:
         selected_mime, ext = self.negotiate_mime()
 
         # Add the current timestamp with reading from last one read to generate appropriate graphics
-        readings.insert(0, [int(time.mktime(time.gmtime())), readings[0][1], None])
+        readings.insert(0, [int(time.mktime(time.localtime())), readings[0][1], None])
 
         if ext is not 'json':
             graph = Graph(readings)
