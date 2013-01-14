@@ -158,17 +158,34 @@ class Temperature:
         return response
 
     def process_post(self):
-        t = int(time.mktime(time.localtime())) # current time
-        v = self.request.json['reading']
-        l = None
+        app.logger.debug("Processing new reading...")
+
+        j = self.request.json
+
+        if j == None or j['reading'] == None:
+            raise DataException("Invalid data", "Invalid parameters or no value for reading; forgot 'reading' parameter?", 400)
+
+        try:
+            # current value (in C)
+            v = float(j['reading'])
+        except ValueError:
+            raise DataException("Invalid data", "Parameter 'reading' accepts only float numbers", 400)
+
+        # current time
+        t = int(time.mktime(time.localtime()))
+        # location of the meter
+        l = j['location']
+        # only if the difference is bigger than this delta
+        # we'll save the value in the database
+        delta = 0.07
 
         result = db_session.execute("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1").first()
 
         if result:
-            if not abs(result['value'] - v) > 0.07:
+            if not abs(result['value'] - v) > delta:
                 """
-                The value we want to safe doesn't differ much from last reading.
-                Ommit the value, return last reading
+                The value we want to save doesn't differ much from last reading.
+                Ommit the value and return last reading
                 """
 
                 app.logger.debug("Trying to save too similar reading, skipping")

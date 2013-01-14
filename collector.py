@@ -13,7 +13,7 @@ from werkzeug.exceptions import NotFound
 
 from sqlalchemy import desc
 
-from database import init_db
+#from database import Database
 from database import db_session
 from reading import Reading
 from graph import Graph
@@ -22,7 +22,7 @@ from temperature import Temperature
 
 from collector.exceptions import CollectorException
 
-def create_app():
+def run_app():
     app = Flask(__name__)
 
     # Read configuration from file
@@ -61,10 +61,11 @@ def create_app():
 
     @app.errorhandler(Exception)
     def error(ex):
-        return prepare_error(ex.message, ex.description)
+        return prepare_error(ex.message, None)
 
     init_logging(app)
-    init_db()
+
+#    Database()
 
     for code in default_exceptions.iterkeys():
         app.error_handler_spec[None][code] = http_error
@@ -124,4 +125,4 @@ def define_routes(app):
     def shutdown_session(exception=None):
         db_session.remove()
  
-create_app()
+run_app()
