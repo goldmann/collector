@@ -159,7 +159,7 @@ class Temperature:
 
     def process_post(self):
         t = int(time.mktime(time.localtime())) # current time
-        v = self.request.json['temp']
+        v = self.request.json['reading']
         l = None
 
         result = db_session.execute("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1").first()
