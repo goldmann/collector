@@ -207,6 +207,6 @@ class Temperature:
         result = db_session.execute("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1").first()
 
         if result:
-          return make_response("<h1 style=\"font-size: 80px;\">Last reading: " + str(result['value']) + "C</h1><h2 style=\"font-size: 40px\">Updated at " + time.ctime(result['timestamp']) + "</h2>")
+          return make_response("<h1 style=\"font-size: 80px;\">Last reading: " + str(result['value']) + u"\u00B0C</h1><h2 style=\"font-size: 40px\">Updated at " + time.ctime(result['timestamp']) + "</h2>")
         else:
           return make_response("No last reading")
