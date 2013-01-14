@@ -115,6 +115,10 @@ def define_routes(app):
             return temp.process_get()
         elif request.method == 'POST':
             return temp.process_post()
+
+    @app.route("/temperature/last", methods=['GET'])
+    def last():
+        return Temperature(request).last()
     
     @app.teardown_request
     def shutdown_session(exception=None):

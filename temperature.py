@@ -128,6 +128,9 @@ class Temperature:
         readings = self.read_data(start, end)
         selected_mime, ext = self.negotiate_mime()
 
+        # Add the current timestamp with reading from last one read to generate appropriate graphics
+        readings.insert(0, [int(time.mktime(time.gmtime())), readings[0][1], None])
+
         if ext is not 'json':
             graph = Graph(readings)
 #            graph.set_maximize(True)
@@ -139,7 +142,7 @@ class Temperature:
 
             response = make_response(data)
         else:
-            response = make_response(jsonify(readings))
+            response = make_response(jsonify(readings = readings))
 
 
         if ext == 'svg':
@@ -162,17 +165,17 @@ class Temperature:
         result = db_session.execute("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1").first()
 
         if result:
-            if not abs(result['value'] - v) > 0.06:
+            if not abs(result['value'] - v) > 0.07:
                 """
                 The value we want to safe doesn't differ much from last reading.
                 Ommit the value, return last reading
                 """
 
-                app.logger.debug("Trying to safe too similar reading, skipping")
+                app.logger.debug("Trying to save too similar reading, skipping")
 
                 return jsonify(reading_to_dict(result['timestamp'], result['value'], result['location']))
         
-        db_session.begin()
+#        db_session.begin()
 
         try:
             db_session.execute("INSERT INTO readings values (:time, :reading, :location)", {'time': t, 'reading': v, 'location': l})
@@ -183,3 +186,10 @@ class Temperature:
 
         return jsonify(reading_to_dict(t, v))
 
+    def last(self):
+        result = db_session.execute("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1").first()
+
+        if result:
+          return make_response("<h1 style=\"font-size: 80px;\">Last reading: " + str(result['value']) + "C</h1><h2 style=\"font-size: 40px\">Updated at " + time.ctime(result['timestamp']) + "</h2>")
+        else:
+          return make_response("No last reading")
