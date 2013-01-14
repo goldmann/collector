@@ -174,7 +174,7 @@ class Temperature:
         # current time
         t = int(time.mktime(time.localtime()))
         # location of the meter
-        l = j['location']
+        l = None
         # only if the difference is bigger than this delta
         # we'll save the value in the database
         delta = 0.07
