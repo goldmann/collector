@@ -177,7 +177,7 @@ class Temperature:
         l = None
         # only if the difference is bigger than this delta
         # we'll save the value in the database
-        delta = 0.07
+        delta = 0.08
 
         result = db_session.execute("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1").first()
 
