@@ -189,7 +189,7 @@ class Temperature:
                 Ommit the value and return last reading
                 """
 
-                app.logger.debug("Trying to save too similar reading (difference: " + difference + "), skipping")
+                app.logger.debug("Trying to save too similar reading (difference: " + str(difference) + "), skipping")
 
                 return jsonify(reading_to_dict(result['timestamp'], result['value'], result['location']))
         
