@@ -13,8 +13,8 @@ from werkzeug.exceptions import NotFound
 
 from sqlalchemy import desc
 
-#from database import Database
 from database import db_session
+from database import init_db
 from reading import Reading
 from graph import Graph
 from utils import Timer, init_logging
@@ -64,8 +64,7 @@ def run_app():
         return prepare_error(ex.message, None)
 
     init_logging(app)
-
-#    Database()
+    init_db()
 
     for code in default_exceptions.iterkeys():
         app.error_handler_spec[None][code] = http_error
