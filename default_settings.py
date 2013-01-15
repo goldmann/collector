@@ -1,4 +1,6 @@
+
 DEBUG = False
+LOG_LEVEL = 'INFO'
 
 DATABASE = 'sqlite:////tmp/test.db'
 

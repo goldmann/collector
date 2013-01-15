@@ -44,8 +44,7 @@ def init_logging(app):
     # NOTSET    0
 
     for l in loggers:
-        if app.config['DEBUG']:
-            l.setLevel(logging.DEBUG)
+        l.setLevel(app.config['LOG_LEVEL'])
 
         # Remove all handlers
         del l.handlers[:]
