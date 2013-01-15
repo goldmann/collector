@@ -182,13 +182,14 @@ class Temperature:
         result = db_session.execute("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1").first()
 
         if result:
-            if not abs(result['value'] - v) > delta:
+            difference = abs(result['value'] - v)
+            if not difference > delta:
                 """
                 The value we want to save doesn't differ much from last reading.
                 Ommit the value and return last reading
                 """
 
-                app.logger.debug("Trying to save too similar reading, skipping")
+                app.logger.debug("Trying to save too similar reading (difference: " + difference + "), skipping")
 
                 return jsonify(reading_to_dict(result['timestamp'], result['value'], result['location']))
         
