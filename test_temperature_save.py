@@ -1,15 +1,15 @@
-import unittest
+import pytest
 
 from flask import json
 from test_utils import TestCollector
 
-class TestTemperatureSave(unittest.TestCase):
+class TestTemperatureSave():
 
-  def setUp(self):
+  def setup_method(self, method):
     self.collector = TestCollector()
     self.app = self.collector.start()
 
-  def tearDown(self):
+  def teardown_method(self, method):
     self.collector.stop()
 
   def test_no_data(self):
@@ -41,5 +41,3 @@ class TestTemperatureSave(unittest.TestCase):
     assert d['value'] == 12.2
     assert d['location'] == "balcony"
 
-if __name__ == '__main__':
-  unittest.main()
