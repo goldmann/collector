@@ -1,5 +1,3 @@
-import datetime as dt
-import time
 import re
 
 from flask import Flask
@@ -11,117 +9,137 @@ from werkzeug.exceptions import default_exceptions
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import NotFound
 
-from sqlalchemy import desc
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.pool import StaticPool
+from sqlalchemy import Column, Integer, Float, String, create_engine, desc
 
-from database import db_session
-from database import init_db
-from reading import Reading
 from graph import Graph
 from utils import Timer, init_logging
 from temperature import Temperature
 
-from collector.exceptions import CollectorException
+from errors import CollectorException
 
-def run_app():
-    app = Flask(__name__)
+class Collector(Flask):
+    def __init__(self):
+        Flask.__init__(self, __name__)
 
-    # Read configuration from file
-    # If settings.py is founds, use it
-    # If settings.py doesn't exists, use default_settings.py
-    #
-    # http://flask.pocoo.org/docs/config/#configuring-from-files
-    try:
-        app.config.from_object('settings')
-    except:
-        app.config.from_object('default_settings')
+        # Read configuration from file
+        # If settings.py is founds, use it
+        # If settings.py doesn't exists, use default_settings.py
+        # If COLLECTOR_SETTINGS env variable is set use specified file it
+        #
+        # http://flask.pocoo.org/docs/config/#configuring-from-files
+        try:
+            self.config.from_object('settings')
+        except:
+            self.config.from_object('default_settings')
 
-    def prepare_error(message, description, code = None):
+        try:
+          self.config.from_envvar('COLLECTOR_SETTINGS')
+        except:
+          pass
 
-        if not code:
-            code = 500
+        self.define_routes()
+        self.register_error_handlers()
 
-        response = jsonify(
-            code = code,
-            message = message,
-            description = description
-        )
+        init_logging(self)
 
-        response.status_code = code
+    def define_routes(self):
+        @self.route("/")
+        def hello():
+            return "Hello World!"
 
-        return response
+        """
+        Adds a new reading to the database.
+        There can be several locations attached to the reading.
+        """
+        @self.route("/temperature", methods=['GET', 'POST'])
+        def temperature():
+            # TODO request shouldn't be forwarded to application code
+            temp = Temperature(request)
 
-    @app.errorhandler(HTTPException)
-    def http_error(ex):
-        return prepare_error(ex.message, re.sub('<[^<]+?>', '', ex.description), ex.code)
+            if request.args.get("accuracy"):
+                temp.set_accuracy(int(request.args.get("accuracy")))
 
-    @app.errorhandler(CollectorException)
-    def application_error(ex):
-        app.logger.warn("%s: %s [%s]", ex.__class__.__name__, ex.message, ex.description)
-        return prepare_error(ex.message, ex.description, ex.code)
+            # TODO db_session is temporary here
+            if request.method == 'GET':
+                return temp.process_get(self.db_session)
+            elif request.method == 'POST':
+                return temp.process_post(self.db_session)
 
-    @app.errorhandler(Exception)
-    def error(ex):
-        return prepare_error(ex.message, None)
+        @self.route("/temperature/last", methods=['GET'])
+        def last():
+            return Temperature(request).last()
 
-    init_logging(app)
-    init_db()
+        @self.teardown_request
+        def shutdown_session(exception=None):
+            self.db_session.remove()
 
-    for code in default_exceptions.iterkeys():
-        app.error_handler_spec[None][code] = http_error
 
-    # Define the routes available in the application
-    define_routes(app)
+    def rule_the_world(self):
+        self.run(self.config['HOST'], self.config['PORT'], self.config['DEBUG'])
 
-    app.logger.info("Application is ready")
+    def register_error_handlers(self):
+        def prepare_error(message, description, code = None):
 
-    if __name__ == '__main__':
-        app.run(app.config['HOST'], app.config['PORT'], app.config['DEBUG'])
+            if not code:
+                code = 500
 
-def define_routes(app):
-    @app.route("/")
-    def hello():
+            response = jsonify(
+                code = code,
+                message = message,
+                description = description
+            )
 
-        return "Hello World!"
+            response.status_code = code
 
-    """
-        if request.args.get("start") and request.args.get("end"):
+            return response
 
-#                start = int(request.args.get("start"))
-#                end = int(request.args.get("end"))
+        @self.errorhandler(HTTPException)
+        def http_error(ex):
+            return prepare_error(ex.message, re.sub('<[^<]+?>', '', ex.description), ex.code)
 
-        else:
-            reading = Reading.query.order_by(desc(Reading.date)).limit(1).all()
+        @self.errorhandler(CollectorException)
+        def application_error(ex):
+            self.logger.warn("%s: %s [%s]", ex.__class__.__name__, ex.message, ex.description)
+            return prepare_error(ex.message, ex.description, ex.code)
 
-            if not reading:
-                raise NotFound(description = "No single reading found, please wait for measures")
-            else:
-                reading = reading.pop()
-                return jsonify(date = reading.date, value = reading.value)
-    """
-    """
-    Adds a new reading to the database.
+        @self.errorhandler(Exception)
+        def error(ex):
+            return prepare_error(ex.message, None)
 
-    There can be several locations attached to the reading.
-    
-    """
-    @app.route("/temperature", methods=['GET', 'POST'])
-    def temperature():
-        temp = Temperature(request)
+        for code in default_exceptions.iterkeys():
+            self.error_handler_spec[None][code] = http_error
 
-        if request.args.get("accuracy"):
-            temp.set_accuracy(int(request.args.get("accuracy")))
 
-        if request.method == 'GET':
-            return temp.process_get()
-        elif request.method == 'POST':
-            return temp.process_post()
+    def init_db(self):
+        engine = create_engine("sqlite:///" + self.config['DATABASE'] , convert_unicode=True)
+        self.db_session = scoped_session(sessionmaker(autocommit=False,
+                                          autoflush=False,
+                                          bind=engine))
+        Base = declarative_base()
+        Base.query = self.db_session.query_property()
 
-    @app.route("/temperature/last", methods=['GET'])
-    def last():
-        return Temperature(request).last()
-    
-    @app.teardown_request
-    def shutdown_session(exception=None):
-        db_session.remove()
+        class Reading(Base):
+            __tablename__ = 'readings'
+
+            timestamp = Column(Integer, primary_key=True, unique=True)
+            value = Column(Float, unique=False, nullable=False)
+            location = Column(String, unique=False, nullable=True)
+
+            def __init__(self, timestamp, value, location = None):
+                self.timestamp = timestamp
+                self.value = value
+                self.location = location
+
+            def __repr__(self):
+                return "[Reading %s %s %s ]" % (self.timestamp, self.value, self.location)
+
+        Base.metadata.create_all(bind=engine)
+
+if __name__ == "__main__":
+    collector = Collector()
+    collector.init_db()
+    collector.rule_the_world()
  
-run_app()

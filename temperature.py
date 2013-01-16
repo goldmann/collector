@@ -7,10 +7,8 @@ from flask import jsonify
 
 from utils import Timer, reading_to_dict
 from graph import Graph
-from database import db_session
-from reading import Reading
 
-from collector.exceptions import *
+from errors import *
 
 class Temperature:
 
@@ -123,7 +121,7 @@ class Temperature:
 
         return readings
 
-    def process_get(self):
+    def process_get(self, db_session):
         start, end = self.validate_time_range()
         readings = self.read_data(start, end)
         selected_mime, ext = self.negotiate_mime()
@@ -157,7 +155,7 @@ class Temperature:
 
         return response
 
-    def process_post(self):
+    def process_post(self, db_session):
         app.logger.debug("Processing new reading...")
 
         j = self.request.json
@@ -174,7 +172,10 @@ class Temperature:
         # current time
         t = int(time.mktime(time.localtime()))
         # location of the meter
-        l = None
+        try:
+            l = j['location']
+        except:
+            l = None
         # only if the difference is bigger than this delta
         # we'll save the value in the database
         delta = 0.08
@@ -193,8 +194,6 @@ class Temperature:
 
                 return jsonify(reading_to_dict(result['timestamp'], result['value'], result['location']))
         
-#        db_session.begin()
-
         try:
             db_session.execute("INSERT INTO readings values (:time, :reading, :location)", {'time': t, 'reading': v, 'location': l})
             db_session.commit()
@@ -202,7 +201,7 @@ class Temperature:
             db_session.rollback()
             raise
 
-        return jsonify(reading_to_dict(t, v))
+        return jsonify(reading_to_dict(t, v, l))
 
     def last(self):
         result = db_session.execute("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1").first()

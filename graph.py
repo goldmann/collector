@@ -9,7 +9,6 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.dates import AutoDateFormatter
 from matplotlib.dates import AutoDateLocator
 
-from reading import Reading
 from database import db_session
 from utils import Timer
 
